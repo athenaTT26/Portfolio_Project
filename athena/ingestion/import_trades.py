@@ -12,33 +12,37 @@ def _float(v, default=0.0):
     except Exception:
         return default
 
-def _int(v, default=0):
-    try:
-        return default if v is None or v == "" else int(float(v))
-    except Exception:
-        return default
-
 def _text(v):
     return "" if v is None else str(v)
 
-def insert_candidate(conn, r):
+def insert_trade(conn, r):
     values = {
         "run_id": _text(r.get("run_id")),
         "candidate_id": _text(r.get("candidate_id")),
+        "trade_id": _text(r.get("trade_id")),
+        "mt5_ticket": _text(r.get("mt5_ticket")),
         "ea_version": _text(r.get("ea_version")),
         "timeframe": _text(r.get("timeframe")),
-        "candidate_tier": _text(r.get("candidate_tier")),
         "symbol": _text(r.get("symbol")),
         "direction": _text(r.get("direction")),
-        "candidate_time": _text(r.get("candidate_time")),
-        "accepted": _int(r.get("accepted")),
-        "decision_reason": _text(r.get("decision_reason")),
-        "rejection_reason": _text(r.get("rejection_reason")),
+        "entry_time": _text(r.get("entry_time")),
+        "exit_time": _text(r.get("exit_time")),
+        "entry_price": _float(r.get("entry_price")),
+        "exit_price": _float(r.get("exit_price")),
+        "stop_loss": _float(r.get("stop_loss")),
+        "take_profit": _float(r.get("take_profit")),
+        "lots": _float(r.get("lots")),
+        "risk_percent": _float(r.get("risk_percent")),
+        "profit": _float(r.get("profit")),
+        "r_multiple": _float(r.get("r_multiple")),
+        "mae": _float(r.get("mae")),
+        "mfe": _float(r.get("mfe")),
+        "holding_minutes": _float(r.get("holding_minutes")),
+        "exit_reason": _text(r.get("exit_reason")),
+        "result": _text(r.get("result")),
         "regime": _text(r.get("regime")),
         "volatility_state": _text(r.get("volatility_state")),
         "session_name": _text(r.get("session_name")),
-        "spread_points": _float(r.get("spread_points")),
-        "atr_value": _float(r.get("atr_value")),
         "htf_score": _float(r.get("htf_score")),
         "liquidity_score": _float(r.get("liquidity_score")),
         "fvg_score": _float(r.get("fvg_score")),
@@ -47,41 +51,37 @@ def insert_candidate(conn, r):
         "volatility_score": _float(r.get("volatility_score")),
         "session_score": _float(r.get("session_score")),
         "total_score": _float(r.get("total_score")),
-        "market_quality_score": _float(r.get("market_quality_score")),
-        "nonzero_components": _int(r.get("nonzero_components")),
-        "liquidity_present": _int(r.get("liquidity_present")),
-        "fvg_present": _int(r.get("fvg_present")),
-        "displacement_present": _int(r.get("displacement_present")),
-        "volume_present": _int(r.get("volume_present")),
     }
+
     cols = list(values.keys())
     placeholders = ", ".join(["?"] * len(cols))
     conn.execute(
-        f"INSERT INTO candidates ({', '.join(cols)}) VALUES ({placeholders})",
+        f"INSERT INTO trades ({', '.join(cols)}) VALUES ({placeholders})",
         [values[c] for c in cols],
     )
 
-def import_candidates(path, replace_existing=True):
+def import_trades(path, replace_existing=True):
     count = 0
     with sqlite3.connect(DB_PATH) as conn:
         if replace_existing:
-            conn.execute("DELETE FROM candidates")
+            conn.execute("DELETE FROM trades")
             conn.commit()
         with path.open("r", encoding="mbcs", newline="") as f:
             for row in csv.DictReader(f):
-                insert_candidate(conn, row)
+                insert_trade(conn, row)
                 count += 1
         conn.commit()
     return count
 
 def main():
-    file = MT5_COMMON_FILES / "ATHENA_candidates.csv"
+    file = MT5_COMMON_FILES / "ATHENA_trades.csv"
     if not file.exists():
-        print(f"No ATHENA_candidates.csv found at: {file}")
+        print(f"No ATHENA_trades.csv found at: {file}")
+        print("This is expected until the EA trade event pipeline is enabled.")
         return
-    imported = import_candidates(file, replace_existing=True)
-    print(f"Imported {imported} ATHENA candidate rows into SQLite.")
-    print("Existing candidates were refreshed from the latest CSV.")
+
+    imported = import_trades(file, replace_existing=True)
+    print(f"Imported {imported} ATHENA trade rows into SQLite.")
 
 if __name__ == "__main__":
     main()
